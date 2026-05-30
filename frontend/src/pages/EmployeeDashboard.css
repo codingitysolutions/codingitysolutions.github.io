@@ -1,0 +1,109 @@
+.employee-page{
+  min-height:100vh;
+  padding:40px;
+  background:#f8fafc;
+  font-family:Inter,Arial,sans-serif;
+}
+
+.hero-card{
+  background:linear-gradient(
+    135deg,
+    #204D9E,
+    #1d4ed8
+  );
+  color:white;
+  padding:40px;
+  border-radius:24px;
+  margin-bottom:30px;
+  box-shadow:0 20px 40px rgba(37,99,235,.25);
+}
+
+.logout-btn{
+  background:#ef4444;
+  color:white;
+  border:none;
+  padding:12px 22px;
+  border-radius:12px;
+  font-weight:600;
+  cursor:pointer;
+  transition:.3s;
+}
+
+.logout-btn:hover{
+  background:#dc2626;
+  transform:translateY(-2px);
+}
+
+.hero-card h1{
+  margin:0;
+  font-size:42px;
+}
+
+.hero-card p{
+  margin-top:10px;
+  opacity:.9;
+}
+
+.employee-card{
+  background:white;
+  padding:25px;
+  border-radius:20px;
+  box-shadow:0 10px 25px rgba(0,0,0,.08);
+  margin-bottom:25px;
+}
+
+.action-card{
+  background:white;
+  padding:25px;
+  border-radius:20px;
+  box-shadow:0 10px 25px rgba(0,0,0,.08);
+}
+
+.checkin-btn{
+  background:#16a34a;
+  color:white;
+  border:none;
+  padding:14px 24px;
+  border-radius:12px;
+  cursor:pointer;
+  font-weight:700;
+}
+
+.checkout-btn{
+  background:#dc2626;
+  color:white;
+  border:none;
+  padding:14px 24px;
+  border-radius:12px;
+  cursor:pointer;
+  font-weight:700;
+  margin-left:10px;
+}
+
+@media(max-width:768px){
+
+  .hero-card > div{
+    flex-direction:column;
+    gap:15px;
+  }
+
+}
+
+
+.status-card{
+  background:#fff;
+  padding:25px;
+  border-radius:20px;
+  margin-top:20px;
+  box-shadow:0 10px 25px rgba(0,0,0,.08);
+}
+
+.status-card h2{
+  margin-bottom:10px;
+  color:#2563eb;
+}
+
+.status-card h3{
+  color:#16a34a;
+}
+

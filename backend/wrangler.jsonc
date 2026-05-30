@@ -1,0 +1,13 @@
+{
+  "name": "attendance-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "attendance_db",
+      "database_name": "attendance-db",
+      "database_id": "e23088f9-86fd-4254-95cc-5de6cb43f057"
+    }
+  ]
+}
