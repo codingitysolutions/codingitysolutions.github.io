@@ -44,7 +44,7 @@ export default function Login() {
       <div className="login-card">
 
         <img
-          src="/logo.png"
+          src="/codingity-logo.png"
           alt="Codingity"
           className="logo"
         />

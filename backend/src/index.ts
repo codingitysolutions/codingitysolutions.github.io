@@ -26,6 +26,23 @@ app.get('/', (c) => {
   })
 })
 
+const getIndiaTime = () => {
+  const now = new Date();
+
+  const indiaDateTime = new Date(
+    now.toLocaleString("en-US", {
+      timeZone: "Asia/Kolkata",
+    })
+  );
+
+  const date = indiaDateTime.toISOString().split("T")[0];
+  const hour = indiaDateTime.getHours();
+  const minute = indiaDateTime.getMinutes();
+  const time = indiaDateTime.toLocaleTimeString("en-IN");
+
+  return { date, hour, minute, time };
+};
+
 // REGISTER
 app.post('/api/auth/register', async (c) => {
   const { name, email, password, role, designation } = await c.req.json()
@@ -125,33 +142,41 @@ app.post('/api/auth/login', async (c) => {
 
 // CHECK IN
 app.post('/api/attendance/checkin', async (c) => {
-  const {
-    employeeId,
-    latitude,
-    longitude
-  } = await c.req.json()
+  const { employeeId, latitude, longitude } = await c.req.json();
 
-  const today = new Date().toISOString().split('T')[0]
-  const checkIn = new Date().toLocaleTimeString()
-  console.log(
-  "CHECK IN",
-  employeeId,
-  today,
-  checkIn
-)
+  if (!latitude || !longitude) {
+    return c.json({
+      success: false,
+      message: "Location is required. Please turn ON location."
+    }, 400);
+  }
+
+  const { date: today, hour, minute, time: checkIn } = getIndiaTime();
+
+  if (hour < 9 || (hour === 9 && minute < 55)) {
+    return c.json({
+      success: false,
+      message: "Check-in time not started. It starts at 9:55 AM."
+    }, 400);
+  }
+
+  if (hour > 10 || (hour === 10 && minute > 30)) {
+    return c.json({
+      success: false,
+      message: "Check-in time is over. Last time is 10:30 AM."
+    }, 400);
+  }
 
   const existing = await c.env.attendance_db
-    .prepare(
-      'SELECT * FROM attendance WHERE employee_id = ? AND date = ?'
-    )
+    .prepare('SELECT * FROM attendance WHERE employee_id = ? AND date = ?')
     .bind(employeeId, today)
-    .first()
+    .first();
 
   if (existing) {
     return c.json({
       success: false,
-      message: 'Already checked in today'
-    })
+      message: "Already checked in today"
+    }, 400);
   }
 
   await c.env.attendance_db
@@ -160,40 +185,26 @@ app.post('/api/attendance/checkin', async (c) => {
       (employee_id,date,check_in,status,latitude,longitude)
       VALUES (?,?,?,?,?,?)`
     )
-    .bind(
-      employeeId,
-      today,
-      checkIn,
-      'Present',
-      latitude || '',
-      longitude || ''
-    )
-    .run()
-
-    const test = await c.env.attendance_db
-  .prepare(
-    'SELECT * FROM attendance WHERE employee_id = ?'
-  )
-  .bind(employeeId)
-  .all()
-
-console.log(
-  "ATTENDANCE DATA",
-  test.results
-)
+    .bind(employeeId, today, checkIn, "Present", latitude, longitude)
+    .run();
 
   return c.json({
     success: true,
-    message: 'Check In Successful'
-  })
-})
+    message: "Check In Successful"
+  });
+});
 
 // CHECK OUT
 app.post('/api/attendance/checkout', async (c) => {
   const { employeeId } = await c.req.json()
 
-  const today = new Date().toISOString().split('T')[0]
-  const checkOut = new Date().toLocaleTimeString()
+  const { date: today, hour, time: checkOut } = getIndiaTime();
+
+let status = 'Full Day'
+
+if (hour < 17) {
+  status = 'Half Day'
+}
 
   const record: any = await c.env.attendance_db
     .prepare(
@@ -209,11 +220,22 @@ app.post('/api/attendance/checkout', async (c) => {
     })
   }
 
+  if (record.check_out) {
+  return c.json({
+    success: false,
+    message: 'Already checked out'
+  })
+}
+
   await c.env.attendance_db
-    .prepare(
-      'UPDATE attendance SET check_out = ? WHERE id = ?'
-    )
-    .bind(checkOut, record.id)
+   .prepare(
+  'UPDATE attendance SET check_out = ?, status = ? WHERE id = ?'
+)
+.bind(
+  checkOut,
+  status,
+  record.id
+)
     .run()
 
   return c.json({
@@ -261,11 +283,16 @@ app.get('/api/admin/stats', async (c) => {
   const today = new Date().toISOString().split('T')[0]
 
   const present: any = await c.env.attendance_db
-    .prepare(
-      'SELECT COUNT(*) as total FROM attendance WHERE date = ?'
-    )
-    .bind(today)
-    .first()
+  .prepare(
+    `
+    SELECT COUNT(*) as total
+    FROM attendance
+    WHERE date = ?
+    AND check_out IS NULL
+    `
+  )
+  .bind(today)
+  .first()
 
   const employees: any = await c.env.attendance_db
     .prepare(
@@ -375,7 +402,7 @@ app.get('/api/admin/monthly-summary', async (c) => {
         employees.designation,
         COUNT(
   CASE
-    WHEN attendance.status = 'Present'
+    WHEN attendance.status = 'Full Day'
     THEN 1
   END
 ) as totalDays

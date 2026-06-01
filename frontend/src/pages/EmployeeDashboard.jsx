@@ -11,20 +11,46 @@ export default function EmployeeDashboard() {
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const savedUser = JSON.parse(
-      localStorage.getItem("user")
+ useEffect(() => {
+  const savedUser = JSON.parse(
+    localStorage.getItem("user")
+  );
+
+  setUser(savedUser);
+
+  if (savedUser) {
+    loadTodayAttendance(savedUser.id);
+  }
+}, []);
+
+const loadTodayAttendance = async (employeeId) => {
+  try {
+    const res = await API.get(
+      `/api/attendance/history/${employeeId}`
     );
 
-    const savedStatus =
-      localStorage.getItem("attendanceStatus");
+    const today = new Date().toLocaleDateString(
+  "en-CA"
+);
 
-    setUser(savedUser);
+    const todayRecord = res.data.data.find(
+      (item) => item.date === today
+    );
 
-    if (savedStatus) {
-      setAttendanceStatus(savedStatus);
+    if (!todayRecord) {
+      setAttendanceStatus("Not Checked In");
+      return;
     }
-  }, []);
+
+    if (todayRecord.check_out) {
+      setAttendanceStatus("Checked Out ✅");
+    } else {
+      setAttendanceStatus("Checked In ✅");
+    }
+  } catch (err) {
+    console.log(err);
+  }
+};
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -34,67 +60,69 @@ export default function EmployeeDashboard() {
   };
 
   const handleCheckIn = () => {
-    if (!user) return;
+  if (!user) return;
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          await API.post(
-            "/api/attendance/checkin",
-            {
-              employeeId: user.id,
-              latitude:
-                position.coords.latitude,
-              longitude:
-                position.coords.longitude,
-            }
-          );
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      try {
+        const res = await API.post(
+          "/api/attendance/checkin",
+          {
+            employeeId: user.id,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          }
+        );
 
-          alert("Check In Successful");
+        alert(
+          res?.data?.message ||
+          "Check In Successful"
+        );
 
-          setAttendanceStatus(
-            "Checked In ✅"
-          );
+        loadTodayAttendance(user.id);
 
-          localStorage.setItem(
-            "attendanceStatus",
-            "Checked In ✅"
-          );
-        } catch (err) {
-          console.log(err);
-          alert("Already Checked In");
-        }
-      },
+      } catch (err) {
+        console.log(err);
 
-      (error) => {
-        console.log(error);
-
-        if (error.code === 1) {
-          alert(
-            "Location Permission Denied"
-          );
-        } else if (error.code === 2) {
-          alert(
-            "Location Unavailable"
-          );
-        } else if (error.code === 3) {
-          alert(
-            "Location Request Timed Out"
-          );
-        } else {
-          alert(
-            "Unable to Get Location"
-          );
-        }
-      },
-
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        alert(
+          err?.response?.data?.message ||
+          "Check In Failed"
+        );
       }
-    );
-  };
+    },
+
+    (error) => {
+      console.log(error);
+
+      if (error.code === 1) {
+        alert(
+          "Location Permission Denied. Please allow location access."
+        );
+      } else if (error.code === 2) {
+        alert(
+          "Location Unavailable. Please turn ON GPS and try again."
+        );
+      } else if (error.code === 3) {
+        alert(
+          "Location Request Timed Out. Try again."
+        );
+      } else {
+        alert(
+          "Location is mandatory for attendance."
+        );
+      }
+    },
+
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    }
+  );
+};
+ 
+
+   
 
   const handleCheckOut = async () => {
     try {
@@ -111,10 +139,7 @@ export default function EmployeeDashboard() {
         "Checked Out ✅"
       );
 
-      localStorage.setItem(
-        "attendanceStatus",
-        "Checked Out ✅"
-      );
+      loadTodayAttendance(user.id);
     } catch (err) {
       alert("Check Out Failed");
     }
@@ -139,6 +164,7 @@ export default function EmployeeDashboard() {
           <div>
             <h1>
               Codingity Attendance
+              <br />
               System
             </h1>
 
@@ -184,9 +210,9 @@ export default function EmployeeDashboard() {
           className="checkin-btn"
           onClick={handleCheckIn}
           disabled={
-            attendanceStatus ===
-            "Checked In ✅"
-          }
+  attendanceStatus === "Checked In ✅" ||
+  attendanceStatus === "Checked Out ✅"
+}
         >
           Check In
         </button>
@@ -194,10 +220,9 @@ export default function EmployeeDashboard() {
         <button
           className="checkout-btn"
           onClick={handleCheckOut}
-          disabled={
-            attendanceStatus ===
-            "Checked Out ✅"
-          }
+         disabled={
+  attendanceStatus !== "Checked In ✅"
+}
         >
           Check Out
         </button>
