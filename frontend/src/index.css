@@ -126,25 +126,47 @@ body {
 
 /* Toast/Alert notification styling */
 .toast-msg {
-  padding: 10px 16px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  padding: 16px 24px;
   border-radius: var(--radius-md);
-  margin-bottom: 16px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
-  animation: fadeIn 0.2s ease;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+  animation: toastFadeIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  max-width: 90%;
+  width: 380px;
+  text-align: center;
 }
+
+@keyframes toastFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
 .toast-success {
-  background: #e8f5e9;
-  border: 1px solid #c8e6c9;
-  color: #2e7d32;
+  background: #ffffff;
+  border: 2px solid #10b981;
+  color: #065f46;
 }
+
 .toast-error {
-  background: #ffebee;
-  border: 1px solid #ffcdd2;
-  color: #c62828;
+  background: #ffffff;
+  border: 2px solid #ef4444;
+  color: #991b1b;
 }
 
 
