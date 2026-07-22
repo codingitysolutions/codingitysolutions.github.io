@@ -114,7 +114,7 @@ export default function Login() {
         </form>
 
         <div className="login-badge">
-          <span>Secure Enterprise Portal</span> • Codingity IT Solutions
+          <span>Secure Enterprise Portal</span> • Codingity Solutions
         </div>
       </div>
     </div>
