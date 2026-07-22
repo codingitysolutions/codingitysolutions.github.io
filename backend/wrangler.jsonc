@@ -3,6 +3,11 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-05-30",
   "compatibility_flags": ["nodejs_compat"],
+
+  "triggers": {
+  "crons": ["29 18 * * *"]
+},
+
   "d1_databases": [
     {
       "binding": "attendance_db",

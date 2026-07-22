@@ -16,3 +16,14 @@ CREATE TABLE attendance (
   status TEXT DEFAULT 'Present',
   FOREIGN KEY(employee_id) REFERENCES employees(id)
 );
+
+CREATE UNIQUE INDEX idx_attendance_unique
+ON attendance(employee_id, date);
+
+CREATE TABLE daily_targets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  employee_id INTEGER NOT NULL,
+  target_text TEXT NOT NULL,
+  target_date TEXT NOT NULL,
+  status TEXT DEFAULT 'Pending'
+);

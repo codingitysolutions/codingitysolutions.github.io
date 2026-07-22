@@ -45,7 +45,15 @@ const getIndiaTime = () => {
 
 // REGISTER
 app.post('/api/auth/register', async (c) => {
-  const { name, email, password, role, designation } = await c.req.json()
+  const {
+  name,
+  email,
+  password,
+  role,
+  designation,
+  employee_id,
+  photo_url
+} = await c.req.json()
 
   if (!name || !email || !password) {
     return c.json(
@@ -70,15 +78,19 @@ app.post('/api/auth/register', async (c) => {
 
   await c.env.attendance_db
     .prepare(
-      'INSERT INTO employees (name,email,password,role,designation) VALUES (?,?,?,?,?)'
+      `INSERT INTO employees
+(name,email,password,role,designation,employee_id,photo_url)
+VALUES (?,?,?,?,?,?,?)`
     )
     .bind(
-      name,
-      email,
-      hashedPassword,
-      role || 'employee',
-      designation || ''
-    )
+  name,
+  email,
+  hashedPassword,
+  role || 'employee',
+  designation || '',
+  employee_id || '',
+  photo_url || ''
+)
     .run()
 
   return c.json({
@@ -128,16 +140,18 @@ app.post('/api/auth/login', async (c) => {
   )
 
   return c.json({
-    success: true,
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      designation: user.designation
-    }
-  })
+  success: true,
+  token,
+  user: {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    designation: user.designation,
+    employee_id: user.employee_id,
+    photo_url: user.photo_url
+  }
+})
 })
 
 // CHECK IN
@@ -266,9 +280,19 @@ app.get('/api/attendance/history/:employeeId', async (c) => {
 // ALL EMPLOYEES
 app.get('/api/admin/employees', async (c) => {
   const result = await c.env.attendance_db
-    .prepare(
-      'SELECT id,name,email,designation,role FROM employees ORDER BY id DESC'
-    )
+      .prepare(`
+  SELECT
+    id,
+    name,
+    email,
+    designation,
+    role,
+    employee_id,
+    photo_url
+  FROM employees
+  ORDER BY id DESC
+`)
+    
     .all()
 
   return c.json({
@@ -277,10 +301,35 @@ app.get('/api/admin/employees', async (c) => {
   })
 })
 
+app.get(
+'/api/employee/today-target/:employeeId',
+async (c) => {
+
+const employeeId = c.req.param('employeeId')
+const { date: today } = getIndiaTime();
+
+const target = await c.env.attendance_db
+.prepare(`
+SELECT *
+FROM daily_targets
+WHERE employee_id = ?
+AND target_date = ?
+ORDER BY id DESC LIMIT 1
+`)
+.bind(employeeId, today)
+.first()
+
+return c.json({
+success: true,
+target
+})
+
+})
+
 
 // TODAY STATS
 app.get('/api/admin/stats', async (c) => {
-  const today = new Date().toISOString().split('T')[0]
+  const { date: today } = getIndiaTime()
 
   const present: any = await c.env.attendance_db
   .prepare(
@@ -288,7 +337,7 @@ app.get('/api/admin/stats', async (c) => {
     SELECT COUNT(*) as total
     FROM attendance
     WHERE date = ?
-    AND check_out IS NULL
+    AND status IN ('Present','Full Day','Half Day','Auto Checkout')
     `
   )
   .bind(today)
@@ -357,6 +406,43 @@ app.get('/api/admin/attendance-report', async (c) => {
   })
 })
 
+app.put(
+'/api/employee/complete-target/:id',
+async (c) => {
+const id = c.req.param('id')
+
+await c.env.attendance_db
+.prepare(`
+UPDATE daily_targets
+SET status = 'Completed'
+WHERE id = ?
+`)
+.bind(id)
+.run()
+
+return c.json({
+success: true
+})
+})
+
+app.put('/api/employee/target-status/:id', async (c) => {
+  const id = c.req.param('id')
+  const { status } = await c.req.json()
+
+  if (!status) {
+    return c.json({ success: false, message: 'Status is required' }, 400)
+  }
+
+  await c.env.attendance_db
+    .prepare(`UPDATE daily_targets SET status = ? WHERE id = ?`)
+    .bind(status, id)
+    .run()
+
+  return c.json({
+    success: true,
+    message: 'Target status updated'
+  })
+})
 
 // UPDATE EMPLOYEE
 app.put('/api/admin/employee/:id', async (c) => {
@@ -365,23 +451,28 @@ app.put('/api/admin/employee/:id', async (c) => {
   const {
     name,
     email,
-    designation
+    designation,
+    employee_id,
+    photo_url
   } = await c.req.json()
 
   await c.env.attendance_db
-    .prepare(
-      `
+    .prepare(`
       UPDATE employees
-      SET name = ?,
-          email = ?,
-          designation = ?
+      SET
+        name = ?,
+        email = ?,
+        designation = ?,
+        employee_id = ?,
+        photo_url = ?
       WHERE id = ?
-    `
-    )
+    `)
     .bind(
       name,
       email,
       designation,
+      employee_id,
+      photo_url,
       id
     )
     .run()
@@ -392,6 +483,75 @@ app.put('/api/admin/employee/:id', async (c) => {
   })
 })
 
+// ASSIGN TARGET
+app.post('/api/admin/assign-target', async (c) => {
+  const {
+    employee_id,
+    target_text,
+    target_date
+  } = await c.req.json()
+
+  const { date: today } = getIndiaTime();
+  const dateToSave = target_date || today;
+
+  await c.env.attendance_db
+    .prepare(`
+      INSERT INTO daily_targets
+      (employee_id, target_text, target_date, status)
+      VALUES (?, ?, ?, 'Pending')
+    `)
+    .bind(
+      employee_id,
+      target_text,
+      dateToSave
+    )
+    .run()
+
+  return c.json({
+    success: true,
+    message: "Target Assigned"
+  })
+})
+
+// GET ALL TARGETS (ADMIN)
+app.get('/api/admin/targets', async (c) => {
+  const result = await c.env.attendance_db
+    .prepare(`
+      SELECT 
+        daily_targets.id,
+        daily_targets.employee_id,
+        daily_targets.target_text,
+        daily_targets.target_date,
+        daily_targets.status,
+        employees.name as employee_name,
+        employees.email as employee_email,
+        employees.designation as employee_designation
+      FROM daily_targets
+      LEFT JOIN employees ON daily_targets.employee_id = employees.id
+      ORDER BY daily_targets.id DESC
+    `)
+    .all()
+
+  return c.json({
+    success: true,
+    targets: result.results
+  })
+})
+
+// DELETE TARGET (ADMIN)
+app.delete('/api/admin/target/:id', async (c) => {
+  const id = c.req.param('id')
+
+  await c.env.attendance_db
+    .prepare('DELETE FROM daily_targets WHERE id = ?')
+    .bind(id)
+    .run()
+
+  return c.json({
+    success: true,
+    message: 'Target Deleted'
+  })
+})
 
 // MONTHLY ATTENDANCE SUMMARY
 app.get('/api/admin/monthly-summary', async (c) => {
@@ -419,4 +579,30 @@ app.get('/api/admin/monthly-summary', async (c) => {
     summary: result.results
   })
 })
-export default app
+export default {
+  fetch: app.fetch,
+
+  async scheduled(
+  event: any,
+  env: any,
+  ctx: any
+) {
+
+  const { date } = getIndiaTime();
+
+  await env.attendance_db
+    .prepare(`
+      UPDATE attendance
+      SET
+        check_out = '11:59:59 PM',
+        status = 'Full Day'
+      WHERE
+        check_out IS NULL
+        AND date = ?
+    `)
+    .bind(date)
+    .run();
+
+  console.log(`Auto checkout completed for ${date}`);
+}
+};
