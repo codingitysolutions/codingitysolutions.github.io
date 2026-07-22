@@ -48,8 +48,33 @@ export default function AdminDashboard() {
 
   // Filter & Edit State
   const [search, setSearch] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("all");
   const [editingId, setEditingId] = useState(null);
   const [toast, setToast] = useState(null); // { type: 'success' | 'error', text: '' }
+
+  const getUniqueMonths = () => {
+    const months = new Set();
+    attendance.forEach((item) => {
+      if (item.date) {
+        const parts = item.date.split("-");
+        if (parts.length >= 2) {
+          months.add(`${parts[0]}-${parts[1]}`);
+        }
+      }
+    });
+    return Array.from(months).sort().reverse();
+  };
+
+  const formatMonthLabel = (yearMonth) => {
+    const [year, month] = yearMonth.split("-");
+    const date = new Date(year, parseInt(month) - 1, 1);
+    return date.toLocaleString("default", { month: "long", year: "numeric" });
+  };
+
+  const filteredAttendance = attendance.filter(
+    (item) =>
+      selectedMonth === "all" || (item.date && item.date.startsWith(selectedMonth))
+  );
 
   const navigate = useNavigate();
 
@@ -262,7 +287,7 @@ export default function AdminDashboard() {
       "Longitude",
     ];
 
-    const rows = attendance.map((item) => [
+    const rows = filteredAttendance.map((item) => [
       item.name || "",
       item.designation || "",
       item.date || "",
@@ -282,7 +307,8 @@ export default function AdminDashboard() {
       type: "text/csv;charset=utf-8;",
     });
 
-    saveAs(blob, `attendance-report-${new Date().toISOString().split("T")[0]}.csv`);
+    const monthSuffix = selectedMonth === "all" ? "all-months" : selectedMonth;
+    saveAs(blob, `attendance-report-${monthSuffix}.csv`);
   };
 
   const filteredEmployees = employees.filter((emp) =>
@@ -646,10 +672,26 @@ export default function AdminDashboard() {
                 <h2>Attendance Logs</h2>
               </div>
 
-              <button className="btn-primary" onClick={exportAttendanceCSV}>
-                <Download size={18} />
-                <span>Export CSV Report</span>
-              </button>
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="form-select"
+                  style={{ width: "180px", height: "40px", padding: "0 10px", borderRadius: "var(--radius-sm)", border: "1px solid #cbd5e1" }}
+                >
+                  <option value="all">All Months</option>
+                  {getUniqueMonths().map((ym) => (
+                    <option key={ym} value={ym}>
+                      {formatMonthLabel(ym)}
+                    </option>
+                  ))}
+                </select>
+
+                <button className="btn-primary" onClick={exportAttendanceCSV}>
+                  <Download size={18} />
+                  <span>Export CSV Report</span>
+                </button>
+              </div>
             </div>
 
             <div className="table-wrapper">
@@ -666,14 +708,14 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {attendance.length === 0 ? (
+                  {filteredAttendance.length === 0 ? (
                     <tr>
                       <td colSpan="7" style={{ textAlign: "center", color: "var(--text-dim)" }}>
-                        No attendance records recorded yet.
+                        No attendance records recorded for this filter.
                       </td>
                     </tr>
                   ) : (
-                    attendance.map((item) => (
+                    filteredAttendance.map((item) => (
                       <tr key={item.id}>
                         <td>
                           <strong>{item.name || "-"}</strong>
