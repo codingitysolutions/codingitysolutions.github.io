@@ -13,6 +13,13 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const triggerError = (msg) => {
+    setErrorMsg(msg);
+    if (msg) {
+      setTimeout(() => setErrorMsg(""), 3500);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMsg("");
@@ -34,11 +41,11 @@ export default function Login() {
           navigate("/employee");
         }
       } else {
-        setErrorMsg("Invalid credentials. Please try again.");
+        triggerError("Invalid credentials. Please try again.");
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(
+      triggerError(
         err.response?.data?.message || "Login failed. Please check your credentials."
       );
     } finally {
